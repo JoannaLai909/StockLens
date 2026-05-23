@@ -38,8 +38,10 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# 用編輯器打開 .env，填入你的資料庫密碼與 FinMind token
 ```
+
+`.env` の預設值可以直接使用（DB 密碼對應下方 Docker 指令）。
+`FINMIND_TOKEN` 是選填，免費版留空也能跑，有需要再到 [finmindtrade.com](https://finmindtrade.com) 註冊取得。
 
 ### 3. 啟動 PostgreSQL
 
