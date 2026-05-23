@@ -19,8 +19,11 @@ import requests
 import pandas as pd
 import psycopg2
 from psycopg2.extras import execute_values
+from dotenv import load_dotenv
 
 from stock_list import STOCK_LIST, STOCK_IDS
+
+load_dotenv()  # 載入 .env 檔案
 
 # ── 設定 ──────────────────────────────────────────────
 logging.basicConfig(
@@ -30,13 +33,13 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-# 從環境變數讀取（或直接改這裡）
+# 從 .env 讀取（必填項目沒設定會直接報錯，避免用錯誤設定連線）
 DB_CONFIG = {
     "host":     os.getenv("DB_HOST",     "localhost"),
     "port":     int(os.getenv("DB_PORT", "5432")),
     "dbname":   os.getenv("DB_NAME",     "stockdb"),
     "user":     os.getenv("DB_USER",     "postgres"),
-    "password": os.getenv("DB_PASSWORD", "postgres"),
+    "password": os.environ["DB_PASSWORD"],  # 必填，沒設定直接 KeyError
 }
 
 FINMIND_TOKEN = os.getenv("FINMIND_TOKEN", "")   # 免費版可留空，有 token 速率較高
