@@ -1,32 +1,32 @@
 # StockLens
 
-台股分析系統，透過 ETL 抓取股價資料、計算量化因子，並以 Dashboard 視覺化呈現。
+A Taiwan stock analysis system that fetches price data via ETL, computes quantitative factors, and visualizes results in a dashboard.
 
-## 專案架構
+## Project Structure
 
 ```
 StockLens/
-├── schema.sql        # PostgreSQL 建表 SQL
-├── stock_list.py     # 股票清單與產業分類
-├── etl.py            # FinMind ETL：抓股價、清洗、入庫
-├── requirements.txt  # Python 套件
-├── .env.example      # 環境變數範本
+├── schema.sql        # PostgreSQL schema (tables + views)
+├── stock_list.py     # Stock list with industry categories
+├── etl.py            # FinMind ETL: fetch, clean, and load price data
+├── requirements.txt  # Python dependencies
+├── .env.example      # Environment variable template
 └── .gitignore
 ```
 
-## 分工
+## Team
 
-| Branch | 成員 | 負責內容 |
-|--------|------|----------|
-| `feature/member-a-etl` | 成員 A | 資料工程：schema、ETL、股票清單 |
-| `feature/member-b-factors` | 成員 B | 因子計算：報酬率、波動率、health score、K-means 分群 |
-| `feature/member-c-dashboard` | 成員 C | Dashboard：資料視覺化 |
+| Branch | Member | Responsibility |
+|--------|--------|----------------|
+| `feature/member-a-etl` | Member A | Data engineering: schema, ETL, stock list |
+| `feature/member-b-factors` | Member B | Factor calculation: returns, volatility, health score, K-means clustering |
+| `feature/member-c-dashboard` | Member C | Dashboard: data visualization |
 
 ---
 
-## 快速開始
+## Getting Started
 
-### 1. Clone 並安裝套件
+### 1. Clone and install dependencies
 
 ```bash
 git clone https://github.com/JoannaLai909/StockLens.git
@@ -34,75 +34,76 @@ cd StockLens
 pip install -r requirements.txt
 ```
 
-### 2. 設定環境變數
+### 2. Set up environment variables
 
 ```bash
 cp .env.example .env
 ```
 
-`.env` 預設值可以直接使用（DB 密碼對應下方 Docker 指令）。
-`FINMIND_TOKEN` 是選填，免費版留空也能跑，有需要再到 [finmindtrade.com](https://finmindtrade.com) 註冊取得。
+Open `.env` and fill in your values. `DB_PASSWORD` should match the password you set when starting PostgreSQL (see step 3). `FINMIND_TOKEN` is optional — the free tier works without it. Get a token at [finmindtrade.com](https://finmindtrade.com) if you hit rate limits.
 
-### 3. 啟動 PostgreSQL
+### 3. Start PostgreSQL
 
 ```bash
 docker run -d \
   --name stockdb \
-  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_PASSWORD=your_password_here \
   -e POSTGRES_DB=stockdb \
   -p 5432:5432 \
   postgres:15
 ```
 
-### 4. 初始化資料庫
+Use the same password in your `.env` file.
+
+### 4. Initialize the database
 
 ```bash
 python etl.py --init-db
 ```
 
-### 5. 執行 ETL
+### 5. Run the ETL
 
 ```bash
-# 抓所有股票，近 90 天
+# fetch all stocks, last 90 days
 python etl.py
 
-# 抓近 180 天
+# last 180 days
 python etl.py --days 180
 
-# 只抓台積電（測試用）
+# single stock only (for testing)
 python etl.py --stock 2330
 ```
 
 ---
 
-## 資料表
+## Database Tables
 
-| 資料表 | 說明 |
-|--------|------|
-| `stocks` | 股票基本資料（代號、名稱、產業） |
-| `daily_prices` | 每日股價（由成員 A ETL 寫入） |
-| `factor_scores` | 量化因子（由成員 B 計算後寫入） |
+| Table | Description |
+|-------|-------------|
+| `stocks` | Stock metadata (ticker, name, industry) |
+| `daily_prices` | Daily OHLCV data (written by Member A ETL) |
+| `factor_scores` | Quantitative factors (written by Member B) |
 
-### Views（供成員 C Dashboard 使用）
+### Views (for Member C's Dashboard)
 
-| View | 說明 |
-|------|------|
-| `v_latest_factors` | 最新日期所有股票因子 |
-| `v_top10_return_20d` | 近 20 日報酬率 Top 10 |
-| `v_industry_avg` | 各產業平均因子表現 |
+| View | Description |
+|------|-------------|
+| `v_latest_factors` | Latest factors for all stocks |
+| `v_top10_return_20d` | Top 10 stocks by 20-day return |
+| `v_industry_avg` | Average factor performance by industry |
 
 ---
 
-## 開發流程
+## Development Workflow
 
-各成員在自己的 branch 開發，完成後開 PR 合併回 `main`。
+Each member works on their own branch and opens a PR to merge into `main` when done.
 
 ```bash
-# 切到自己的 branch
+# switch to your branch
 git checkout feature/member-b-factors
 
-# 開發完後 push
+# push your changes
 git push origin feature/member-b-factors
 
-# 到 GitHub 開 Pull Request → main
+# then open a Pull Request on GitHub -> main
 ```
