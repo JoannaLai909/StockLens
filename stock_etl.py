@@ -55,7 +55,7 @@ def get_conn():
 # ── 初始化資料庫 ───────────────────────────────────────
 def init_db(conn):
     """執行 schema.sql 建表，並把股票清單 upsert 進 stocks 表"""
-    schema_path = os.path.join(os.path.dirname(__file__), "schema.sql")
+    schema_path = os.path.join(os.path.dirname(__file__), "stock_schema.sql")
     with open(schema_path, "r", encoding="utf-8") as f:
         sql = f.read()
 

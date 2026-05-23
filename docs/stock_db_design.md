@@ -133,7 +133,7 @@ SELECT * FROM v_industry_avg;
 FinMind API
     │
     ▼
-etl.py（成員 A）
+etl.py（成員 A）→ stock_etl.py
     │  fetch → clean → upsert
     ▼
 daily_prices
@@ -160,5 +160,5 @@ Dashboard（成員 C）
 DROP TABLE IF EXISTS factor_scores, daily_prices, stocks CASCADE;
 
 -- 重新建立
--- 執行 schema.sql 即可
+-- 執行 stock_schema.sql 即可
 ```

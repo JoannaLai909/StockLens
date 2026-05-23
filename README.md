@@ -6,12 +6,14 @@
 
 ```
 StockLens/
-├── schema.sql        # PostgreSQL 建表 SQL（資料表 + Views）
+├── stock_schema.sql  # PostgreSQL 建表 SQL（資料表 + Views）
 ├── stock_list.py     # 股票清單與產業分類
-├── etl.py            # FinMind ETL：抓股價、清洗、入庫
+├── stock_etl.py      # FinMind ETL：抓股價、清洗、入庫
 ├── requirements.txt  # Python 套件
 ├── .env.example      # 環境變數範本
-└── .gitignore
+├── .gitignore
+└── docs/
+    └── stock_db_design.md  # 資料庫設計文檔
 ```
 
 ## 分工
@@ -58,20 +60,20 @@ docker run -d \
 ### 4. 初始化資料庫
 
 ```bash
-python etl.py --init-db
+python stock_etl.py --init-db
 ```
 
 ### 5. 執行 ETL
 
 ```bash
 # 抓所有股票，近 90 天
-python etl.py
+python stock_etl.py
 
 # 近 180 天
-python etl.py --days 180
+python stock_etl.py --days 180
 
 # 只抓單一股票（測試用）
-python etl.py --stock 2330
+python stock_etl.py --stock 2330
 ```
 
 ---
