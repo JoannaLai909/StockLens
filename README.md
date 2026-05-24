@@ -51,7 +51,7 @@ docker run -d \
   --name stockdb \
   -e POSTGRES_PASSWORD=your_password_here \
   -e POSTGRES_DB=stockdb \
-  -p 5432:5432 \
+  -p 5433:5432 \
   postgres:15
 ```
 
