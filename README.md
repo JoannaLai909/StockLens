@@ -28,52 +28,126 @@ StockLens/
 
 ## 快速開始
 
-### 1. Clone 並安裝套件
+> macOS 請用 `pip3` / `python3`；Windows / Linux 用 `pip` / `python` 即可。
+
+### 前置條件：安裝 Docker Desktop
+
+本專案使用 Docker 運行 PostgreSQL，請先確認已安裝 Docker Desktop：
+
+- 下載：[https://www.docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop)
+- 安裝完成後**開啟 Docker Desktop 並保持運行**，之後每次執行 ETL 前都需要確認 Docker Desktop 是開著的
+
+確認安裝成功：
+
+```bash
+docker --version
+# 預期看到類似：Docker version 24.x.x
+```
+
+### 1. Clone 並安裝套件 (路徑需自行調整)
 
 ```bash
 git clone https://github.com/JoannaLai909/StockLens.git
-cd StockLens
-pip install -r requirements.txt
+cd stockLens
+pip3 install -r requirements.txt
 ```
 
 ### 2. 設定環境變數
 
 ```bash
 cp .env.example .env
+open .env   # macOS；Windows 用 notepad .env
 ```
 
-打開 `.env`，填入你的設定值。`DB_PASSWORD` 要和第 3 步啟動 PostgreSQL 時設定的密碼一致。`FINMIND_TOKEN` 選填，免費版留空也能跑；如果遇到速率限制，再到 [finmindtrade.com](https://finmindtrade.com) 註冊取得。
+填入以下內容（存檔後關閉）：
 
-### 3. 啟動 PostgreSQL
+```
+DB_HOST=localhost
+DB_PORT=5433
+DB_NAME=stockdb
+DB_USER=stock_user
+DB_PASSWORD=你的密碼
+FINMIND_TOKEN=
+```
+
+> `FINMIND_TOKEN` 選填，免費版留空也能跑；遇到速率限制再到 [finmindtrade.com](https://finmindtrade.com) 註冊取得。
+
+### 3. 啟動 PostgreSQL（只需執行一次）
 
 ```bash
 docker run -d \
   --name stockdb \
-  -e POSTGRES_PASSWORD=your_password_here \
+  -e POSTGRES_USER=stock_user \
+  -e POSTGRES_PASSWORD=你的密碼 \
   -e POSTGRES_DB=stockdb \
   -p 5433:5432 \
   postgres:15
 ```
 
-密碼請與 `.env` 裡的 `DB_PASSWORD` 保持一致。
+> `POSTGRES_USER` 與 `POSTGRES_PASSWORD` 必須和 `.env` 裡的 `DB_USER` / `DB_PASSWORD` 一致。  
+> **這個指令只跑一次。** 之後重開電腦用 `docker start stockdb` 啟動，不要再跑 `docker run`。
+
+確認 container 有跑起來：
+
+```bash
+docker ps
+# 預期看到 STATUS 為 Up，PORTS 為 0.0.0.0:5433->5432/tcp
+```
 
 ### 4. 初始化資料庫
 
 ```bash
-python stock_etl.py --init-db
+python3 stock_etl.py --init-db
+```
+
+成功 log：
+
+```
+初始化資料庫 ... schema.sql 執行完成
+stocks 表已寫入 10 筆
+初始化完成
 ```
 
 ### 5. 執行 ETL
 
 ```bash
-# 抓所有股票，近 90 天
-python stock_etl.py
+# 抓所有股票（近 90 天）
+python3 stock_etl.py
 
 # 近 180 天
-python stock_etl.py --days 180
+python3 stock_etl.py --days 180
 
 # 只抓單一股票（測試用）
-python stock_etl.py --stock 2330
+python3 stock_etl.py --stock 2330
+```
+
+### 6. 驗證資料入庫
+
+```bash
+docker exec -it stockdb psql -U stock_user -d stockdb -c \
+  "SELECT stock_id, COUNT(*) AS days, MIN(date) AS start, MAX(date) AS end \
+   FROM daily_prices \
+   GROUP BY stock_id \
+   ORDER BY stock_id;"
+```
+
+預期看到 10 支股票各有對應筆數，代表 ETL 成功 ✅
+
+---
+
+## 重開電腦後的流程
+
+Container 重開後會停止，每次需先啟動再跑 ETL：
+
+```bash
+# 1. 啟動 container
+docker start stockdb
+
+# 2. 確認有跑起來
+docker ps
+
+# 3. 更新資料（如需要）
+python3 stock_etl.py
 ```
 
 ---
@@ -109,3 +183,18 @@ git push origin feature/member-b-factors
 
 # 到 GitHub 開 Pull Request -> main
 ```
+
+---
+
+## 常見問題
+
+| 狀況 | 說明 |
+|------|------|
+| `pip` 找不到指令 | macOS 請用 `pip3` |
+| `python` 找不到指令 | macOS 請用 `python3` |
+| `docker` 找不到指令 | Docker Desktop 尚未安裝，請先至官網下載安裝 |
+| 連不上資料庫（剛開機） | 確認 Docker Desktop 已開啟，再執行 `docker start stockdb` |
+| port 5432 被佔用 | 改用 5433，`.env` 的 `DB_PORT` 與 `docker run` 的 `-p` 都要改 |
+| `docker run` 只執行一次 | 之後重開電腦用 `docker start stockdb`，不要再跑 `docker run` |
+| 連不上資料庫 | 先確認 container 有跑：`docker ps`，沒有的話執行 `docker start stockdb` |
+| `.env` 密碼和 container 密碼不一致 | 兩邊設定相同密碼，`DB_PASSWORD` = `POSTGRES_PASSWORD` |
