@@ -1,0 +1,26 @@
+# Git
+.git
+.gitignore
+
+# 機密（由 docker-compose env_file 注入，不要打包進 image）
+.env
+
+# Python 暫存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+
+# IDE / AI 工具
+.vscode/
+.idea/
+.claude/
+
+# macOS
+.DS_Store
+
+# 測試 / 文件（不需要進容器）
+README.md
