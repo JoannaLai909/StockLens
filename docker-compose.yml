@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+
+  # ── 資料庫服務 ────────────────────────────────────────────────────────────────
+  db:
+    image: postgres:15
+    container_name: stocklens-db
+    environment:
+      POSTGRES_DB:       ${DB_NAME}
+      POSTGRES_USER:     ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      # 資料永久保存（容器刪除後資料不會消失）
+      - pgdata:/var/lib/postgresql/data
+      # 第一次啟動時自動執行 Schema 建表
+      - ./stock_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+    ports:
+      # 本機 5433 → 容器內 5432（本機開發時可用 psql 連進來）
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ── 應用程式服務（ETL + 因子計算 + Dashboard）────────────────────────────────
+  app:
+    build: .
+    container_name: stocklens-app
+    # 從 .env 讀取所有環境變數
+    env_file: .env
+    environment:
+      # 覆蓋 .env 裡的 DB_HOST 與 DB_PORT：
+      # 容器內用 service name "db" 溝通，port 是容器內部的 5432
+      DB_HOST: db
+      DB_PORT: 5432
+      # 強制 Python 即時輸出，docker compose up 可以看到即時進度
+      PYTHONUNBUFFERED: "1"
+    ports:
+      # 瀏覽器開 http://localhost:8501
+      - "8501:8501"
+    depends_on:
+      db:
+        # 等 db 健康檢查通過才啟動 app
+        condition: service_healthy
+    restart: unless-stopped
+
+# ── 持久化 Volume ─────────────────────────────────────────────────────────────
+volumes:
+  pgdata:
