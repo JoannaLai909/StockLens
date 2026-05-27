@@ -36,6 +36,8 @@ services:
       # 容器內用 service name "db" 溝通，port 是容器內部的 5432
       DB_HOST: db
       DB_PORT: 5432
+      # 強制 Python 即時輸出，docker compose up 可以看到即時進度
+      PYTHONUNBUFFERED: "1"
     ports:
       # 瀏覽器開 http://localhost:8501
       - "8501:8501"
