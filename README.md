@@ -37,17 +37,6 @@ cp .env.example .env
 open .env   # macOS；Windows 可用 notepad .env
 ```
 
-`.env` 可先使用：
-
-```env
-DB_HOST=localhost
-DB_PORT=5433
-DB_NAME=stockdb
-DB_USER=stock_user
-DB_PASSWORD=stock_password
-FINMIND_TOKEN=
-```
-
 ### 3. 啟動完整系統
 
 請先確認 Docker Desktop 已開啟。
