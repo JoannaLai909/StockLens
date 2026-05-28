@@ -11,9 +11,7 @@ StockLens/
 ├── stock_etl.py      # FinMind ETL：抓股價、清洗、入庫
 ├── requirements.txt  # Python 套件
 ├── .env.example      # 環境變數範本
-├── .gitignore
-└── docs/
-    └── stock_db_design.md  # 資料庫設計文檔
+└── .gitignore
 ```
 
 ## 分工
