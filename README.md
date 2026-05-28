@@ -11,7 +11,9 @@ StockLens/
 ├── stock_etl.py      # FinMind ETL：抓股價、清洗、入庫
 ├── requirements.txt  # Python 套件
 ├── .env.example      # 環境變數範本
-└── .gitignore
+├── .gitignore
+└── docs/
+    └── stock_db_design.md  # 資料庫設計文檔
 ```
 
 ## 分工
@@ -130,6 +132,62 @@ docker exec -it stockdb psql -U stock_user -d stockdb -c \
 ```
 
 預期看到 10 支股票各有對應筆數，代表 ETL 成功 ✅
+
+---
+
+## 啟動 Dashboard 前端
+
+目前 `main` 已整合 Streamlit Dashboard 與 Docker Compose。若只想快速開啟前端展示，建議直接使用 Docker Compose，會自動啟動 PostgreSQL、初始化資料庫、執行 ETL、計算因子，最後開啟 Dashboard。
+
+### 1. 確認 Docker Desktop 已開啟
+
+```bash
+docker --version
+```
+
+### 2. 設定環境變數
+
+```bash
+cp .env.example .env
+open .env   # macOS；Windows 用 notepad .env
+```
+
+`.env` 可先使用以下設定：
+
+```
+DB_HOST=localhost
+DB_PORT=5433
+DB_NAME=stockdb
+DB_USER=stock_user
+DB_PASSWORD=stock_password
+FINMIND_TOKEN=
+```
+
+### 3. 啟動前端與資料服務
+
+```bash
+docker compose up --build
+```
+
+第一次啟動會下載映像檔、安裝套件、抓取股價資料並計算因子，時間會比較久。看到終端機出現 Dashboard 啟動訊息後，打開瀏覽器：
+
+```text
+http://localhost:8501
+```
+
+### 4. 停止服務
+
+在執行 `docker compose up --build` 的終端機按：
+
+```text
+Control + C
+```
+
+若要完全關閉並移除 container：
+
+```bash
+docker compose down
+```
 
 ---
 
