@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import psycopg2
 from dotenv import load_dotenv
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
 
 
 def get_connection():
@@ -193,10 +195,81 @@ def upsert_factor_scores(conn, factors):
     conn.commit()
     return len(rows)
 
+def update_cluster_labels(conn, n_clusters=3):
+    """
+    使用最新日期的 factor_scores 做 K-means 分群，
+    並將結果寫回同一天資料的 cluster_label 欄位。
+    """
+    query = """
+        SELECT stock_id, date, return_20d, return_60d,
+               volatility_20d, max_drawdown, volume_ratio, health_score
+        FROM factor_scores
+        WHERE date = (SELECT MAX(date) FROM factor_scores)
+          AND return_20d IS NOT NULL
+          AND return_60d IS NOT NULL
+          AND volatility_20d IS NOT NULL
+          AND max_drawdown IS NOT NULL
+          AND volume_ratio IS NOT NULL
+          AND health_score IS NOT NULL
+        ORDER BY stock_id;
+    """
+
+    df = pd.read_sql(query, conn)
+
+    if df.empty:
+        print("沒有可分群的資料，請先計算 factor_scores。")
+        return 0
+
+    feature_cols = [
+        "return_20d",
+        "return_60d",
+        "volatility_20d",
+        "max_drawdown",
+        "volume_ratio",
+        "health_score",
+    ]
+
+    if len(df) < n_clusters:
+        n_clusters = len(df)
+
+    x = df[feature_cols].astype(float)
+
+    scaler = StandardScaler()
+    x_scaled = scaler.fit_transform(x)
+
+    model = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    df["cluster_label"] = model.fit_predict(x_scaled)
+
+    sql = """
+        UPDATE factor_scores
+        SET cluster_label = %s,
+            updated_at = NOW()
+        WHERE stock_id = %s
+          AND date = %s;
+    """
+
+    rows = []
+    for _, row in df.iterrows():
+        rows.append(
+            (
+                int(row["cluster_label"]),
+                row["stock_id"],
+                row["date"],
+            )
+        )
+
+    with conn.cursor() as cur:
+        cur.executemany(sql, rows)
+
+    conn.commit()
+
+    print(f"K-means 分群完成：最新日期 {df['date'].iloc[0]}，共 {len(rows)} 支股票")
+    return len(rows)
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--stock", help="只計算單一股票，例如 2330")
+    parser.add_argument("--cluster", action="store_true", help="執行 K-means 分群")
     args = parser.parse_args()
 
     print("開始計算量化因子...")
@@ -212,6 +285,9 @@ def main():
 
         inserted = upsert_factor_scores(conn, factors)
         print(f"factor_scores 寫入完成：{inserted} 筆")
+
+        if args.cluster:
+            update_cluster_labels(conn)
 
     finally:
         conn.close()
