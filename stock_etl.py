@@ -34,13 +34,18 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # 從 .env 讀取（必填項目沒設定會直接報錯，避免用錯誤設定連線）
-DB_CONFIG = {
-    "host":     os.getenv("DB_HOST",     "localhost"),
-    "port":     int(os.getenv("DB_PORT", "5432")),
-    "dbname":   os.getenv("DB_NAME",     "stockdb"),
-    "user":     os.getenv("DB_USER",     "postgres"),
-    "password": os.environ["DB_PASSWORD"],  # 必填，沒設定直接 KeyError
-}
+def get_db_config():
+    password = os.getenv("DB_PASSWORD")
+    if not password:
+        raise RuntimeError("請先在 .env 設定 DB_PASSWORD，並確認它和 PostgreSQL 密碼一致。")
+
+    return {
+        "host": os.getenv("DB_HOST", "localhost"),
+        "port": int(os.getenv("DB_PORT", "5433")),
+        "dbname": os.getenv("DB_NAME", "stockdb"),
+        "user": os.getenv("DB_USER", "stock_user"),
+        "password": password,
+    }
 
 FINMIND_TOKEN = os.getenv("FINMIND_TOKEN", "")   # 免費版可留空，有 token 速率較高
 FINMIND_URL   = "https://api.finmindtrade.com/api/v4/data"
@@ -49,7 +54,7 @@ RATE_LIMIT_SLEEP = 1.5   # 免費版每次請求間隔秒數
 
 # ── 資料庫連線 ─────────────────────────────────────────
 def get_conn():
-    return psycopg2.connect(**DB_CONFIG)
+    return psycopg2.connect(**get_db_config())
 
 
 # ── 初始化資料庫 ───────────────────────────────────────
@@ -222,6 +227,7 @@ if __name__ == "__main__":
         init_db(conn)
         conn.close()
         log.info("初始化完成")
+        exit(0)
 
     ids = [args.stock] if args.stock else STOCK_IDS
     run_etl(ids, args.days)
