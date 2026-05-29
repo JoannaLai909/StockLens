@@ -98,6 +98,16 @@ def calculate_factors(df):
 
     factors = pd.concat(result_list, ignore_index=True)
 
+    factor_cols = [
+        "return_20d",
+        "return_60d",
+        "volatility_20d",
+        "max_drawdown",
+        "volume_ratio",
+    ]
+
+    factors[factor_cols] = factors[factor_cols].replace([np.inf, -np.inf], np.nan)
+
     # 先只保留可以計算完整 60 日因子的資料
     factors = factors.dropna(
         subset=[

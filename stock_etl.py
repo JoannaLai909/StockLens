@@ -1,12 +1,11 @@
-# etl.py
 # FinMind API 抓台股股價，清洗後存入 PostgreSQL
-# 成員 A：Day 1-3
 #
 # 使用方式：
-#   python etl.py                   # 抓所有股票，預設近 90 天
-#   python etl.py --days 180        # 近 180 天
-#   python etl.py --stock 2330      # 只抓單一股票（測試用）
-#   python etl.py --init-db         # 初始化資料庫（建表 + 寫入 stock 清單）
+#   python stock_etl.py                   # 抓所有股票，預設近 365 天
+#   python stock_etl.py --days 180        # 近 180 天
+#   python stock_etl.py --stock 2330      # 只抓單一股票（測試用）
+#   python stock_etl.py --init-db         # 初始化資料庫（建表 + 寫入 stock 清單）
+#   python stock_etl.py --quality-check   # 檢查 daily_prices 資料品質
 # -------------------------------------------------------
 
 import os
@@ -34,13 +33,18 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 # 從 .env 讀取（必填項目沒設定會直接報錯，避免用錯誤設定連線）
-DB_CONFIG = {
-    "host":     os.getenv("DB_HOST",     "localhost"),
-    "port":     int(os.getenv("DB_PORT", "5432")),
-    "dbname":   os.getenv("DB_NAME",     "stockdb"),
-    "user":     os.getenv("DB_USER",     "postgres"),
-    "password": os.environ["DB_PASSWORD"],  # 必填，沒設定直接 KeyError
-}
+def get_db_config():
+    password = os.getenv("DB_PASSWORD")
+    if not password:
+        raise RuntimeError("請先在 .env 設定 DB_PASSWORD，並確認它和 PostgreSQL 密碼一致。")
+
+    return {
+        "host": os.getenv("DB_HOST", "localhost"),
+        "port": int(os.getenv("DB_PORT", "5433")),
+        "dbname": os.getenv("DB_NAME", "stockdb"),
+        "user": os.getenv("DB_USER", "stock_user"),
+        "password": password,
+    }
 
 FINMIND_TOKEN = os.getenv("FINMIND_TOKEN", "")   # 免費版可留空，有 token 速率較高
 FINMIND_URL   = "https://api.finmindtrade.com/api/v4/data"
@@ -49,7 +53,7 @@ RATE_LIMIT_SLEEP = 1.5   # 免費版每次請求間隔秒數
 
 # ── 資料庫連線 ─────────────────────────────────────────
 def get_conn():
-    return psycopg2.connect(**DB_CONFIG)
+    return psycopg2.connect(**get_db_config())
 
 
 # ── 初始化資料庫 ───────────────────────────────────────
@@ -184,6 +188,60 @@ def upsert_prices(conn, df: pd.DataFrame):
     return len(rows)
 
 
+# ── 品質檢查 ─────────────────────────────────────────────
+def run_quality_check(conn):
+    """檢查 daily_prices 的資料品質，供資料工程與 Dashboard 驗證使用"""
+    query = """
+        SELECT
+            s.stock_id,
+            s.name,
+            s.category,
+            COUNT(dp.date) AS rows,
+            MIN(dp.date) AS start_date,
+            MAX(dp.date) AS end_date,
+            SUM(CASE WHEN dp.close IS NULL THEN 1 ELSE 0 END) AS missing_close,
+            SUM(CASE WHEN dp.volume IS NULL THEN 1 ELSE 0 END) AS missing_volume,
+            SUM(
+                CASE
+                    WHEN dp.open < 0 OR dp.high < 0 OR dp.low < 0 OR dp.close < 0 THEN 1
+                    WHEN dp.high < dp.low THEN 1
+                    ELSE 0
+                END
+            ) AS abnormal_price,
+            SUM(CASE WHEN dp.volume < 0 THEN 1 ELSE 0 END) AS abnormal_volume
+        FROM stocks s
+        LEFT JOIN daily_prices dp
+            ON s.stock_id = dp.stock_id
+        GROUP BY s.stock_id, s.name, s.category
+        ORDER BY s.category, s.stock_id;
+    """
+
+    df = pd.read_sql(query, conn)
+
+    if df.empty:
+        log.warning("查無股票資料，請先執行 --init-db。")
+        return df
+
+    log.info("資料品質檢查結果：")
+    print(df.to_string(index=False))
+
+    total_rows = int(df["rows"].sum())
+    total_missing_close = int(df["missing_close"].sum())
+    total_missing_volume = int(df["missing_volume"].sum())
+    total_abnormal_price = int(df["abnormal_price"].sum())
+    total_abnormal_volume = int(df["abnormal_volume"].sum())
+
+    log.info(
+        "品質摘要："
+        f"總筆數={total_rows}, "
+        f"close 空值={total_missing_close}, "
+        f"volume 空值={total_missing_volume}, "
+        f"價格異常={total_abnormal_price}, "
+        f"成交量異常={total_abnormal_volume}"
+    )
+
+    return df 
+
 # ── 主流程 ─────────────────────────────────────────────
 def run_etl(stock_ids: list, days: int):
     end_date   = date.today().isoformat()
@@ -211,9 +269,10 @@ def run_etl(stock_ids: list, days: int):
 # ── CLI ────────────────────────────────────────────────
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="FinMind 股價 ETL")
-    parser.add_argument("--days",     type=int, default=90,   help="抓近幾天（預設 90）")
+    parser.add_argument("--days",     type=int, default=365, help="抓近幾天（預設 365）")
     parser.add_argument("--stock",    type=str, default=None, help="只抓單一股票代號")
     parser.add_argument("--init-db",  action="store_true",    help="初始化資料庫（建表 + 寫入股票清單）")
+    parser.add_argument("--quality-check", action="store_true", help="檢查 daily_prices 資料品質")
     args = parser.parse_args()
 
     if args.init_db:
@@ -222,6 +281,15 @@ if __name__ == "__main__":
         init_db(conn)
         conn.close()
         log.info("初始化完成")
+        exit(0)
+
+    if args.quality_check:
+        log.info("執行資料品質檢查 ...")
+        conn = get_conn()
+        run_quality_check(conn)
+        conn.close()
+        log.info("資料品質檢查完成")
+        exit(0)
 
     ids = [args.stock] if args.stock else STOCK_IDS
     run_etl(ids, args.days)
