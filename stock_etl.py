@@ -216,7 +216,7 @@ def run_etl(stock_ids: list, days: int):
 # ── CLI ────────────────────────────────────────────────
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="FinMind 股價 ETL")
-    parser.add_argument("--days",     type=int, default=90,   help="抓近幾天（預設 90）")
+    parser.add_argument("--days",     type=int, default=365, help="抓近幾天（預設 365）")
     parser.add_argument("--stock",    type=str, default=None, help="只抓單一股票代號")
     parser.add_argument("--init-db",  action="store_true",    help="初始化資料庫（建表 + 寫入股票清單）")
     args = parser.parse_args()
