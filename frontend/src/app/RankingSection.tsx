@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type RankingRow } from "@/lib/api";
 import { Card } from "@/components/ui/Card";
 import { fmtPct, fmtNum, pctColor, cn } from "@/lib/utils";
+import { Download } from "lucide-react";
 
 const TABS = [
   { key: "return_20d",     label: "20日報酬", order: "desc" },
@@ -36,6 +37,44 @@ function valueColor(row: RankingRow, metric: string): string {
   }
 }
 
+function toCsv(rows: RankingRow[], metric: string, metricLabel: string) {
+  const header = [
+    "rank",
+    "stock_id",
+    "name",
+    "category",
+    metricLabel,
+    "return_20d_pct",
+    "return_60d_pct",
+    "volatility_pct",
+    "max_drawdown_pct",
+    "volume_ratio",
+    "health_score",
+    "cluster_label",
+    "latest_close",
+  ];
+
+  const body = rows.map((row, index) => [
+    index + 1,
+    row.stock_id,
+    row.name,
+    row.category,
+    fmt(row, metric),
+    row.return_20d_pct,
+    row.return_60d_pct,
+    row.volatility_pct,
+    row.max_drawdown_pct,
+    row.volume_ratio,
+    row.health_score,
+    row.cluster_label ?? "",
+    row.latest_close,
+  ]);
+
+  return [header, ...body]
+    .map((line) => line.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(","))
+    .join("\n");
+}
+
 export default function RankingSection() {
   const [active, setActive] = useState(0);
   const tab = TABS[active];
@@ -48,8 +87,31 @@ export default function RankingSection() {
   const top5 = data.slice(0, 5);
   const bot5 = data.slice(5, 10);
 
+  const downloadCsv = () => {
+    const csv = `\ufeff${toCsv(data, tab.key, tab.label)}`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `stocklens-top10-${tab.key}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
-    <Card title="因子排行 Top 10">
+    <Card
+      title="因子排行 Top 10"
+      action={
+        <button
+          onClick={downloadCsv}
+          disabled={!data.length}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Download size={14} />
+          匯出 CSV
+        </button>
+      }
+    >
       <div className="flex gap-1 mb-4 border-b border-slate-100">
         {TABS.map((t, i) => (
           <button key={t.key} onClick={() => setActive(i)}
