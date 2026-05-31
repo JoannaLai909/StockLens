@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  LayoutDashboard, LineChart, GitCompare, ShieldCheck,
+  LayoutDashboard, LineChart, GitCompare, ShieldCheck, Trophy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/",         icon: LayoutDashboard, label: "市場總覽" },
+  { href: "/rankings", icon: Trophy,          label: "因子排行" },
   { href: "/stocks",   icon: LineChart,        label: "個股分析" },
   { href: "/compare",  icon: GitCompare,       label: "股票比較" },
   { href: "/health",   icon: ShieldCheck,      label: "資料健康" },
@@ -27,7 +28,7 @@ export default function Sidebar() {
         </div>
         <div>
           <div className="text-sm font-black text-slate-800 leading-tight">StockLens</div>
-          <div className="text-xs text-slate-400">台股量化分析</div>
+          <div className="text-xs text-slate-400">量化分析與健康評估</div>
         </div>
       </div>
 

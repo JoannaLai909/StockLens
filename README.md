@@ -1,6 +1,6 @@
-# StockLens
+# StockLens 台股量化分析與健康評估平台
 
-StockLens 是一個台股量化分析平台，整合股價資料蒐集、PostgreSQL 資料庫、量化因子計算、FastAPI 後端與 Next.js 前端 Dashboard。
+StockLens 是一個台股量化分析與健康評估平台，整合股價資料蒐集、PostgreSQL 資料庫、量化因子計算、FastAPI 後端與 Next.js 前端 Dashboard。
 
 本專案目前支援 30 檔台股與 ETF，抓取近 365 天歷史資料，計算報酬率、波動率、最大回撤、成交量倍率、Health Score 與 K-means 分群，協助快速觀察股票表現與風險。
 
@@ -14,6 +14,8 @@ StockLens 是一個台股量化分析平台，整合股價資料蒐集、Postgre
 | K-means 分群 | 已完成 |
 | FastAPI 後端 | 已可提供資料 API |
 | Next.js 首頁 Dashboard | 已完成基本版 |
+| 因子排行頁 | 已完成基本版 |
+| 個股 PDF 分析報告 | 已完成基本版 |
 | 股票比較頁 | 開發中 |
 | 資料健康頁 | 開發中 |
 

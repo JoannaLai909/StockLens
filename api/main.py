@@ -7,7 +7,7 @@ from routers import market, rankings, stocks
 
 app = FastAPI(
     title="StockLens API",
-    description="台股量化分析平台 API",
+    description="台股量化分析與健康評估平台 API",
     version="1.0.0",
 )
 
