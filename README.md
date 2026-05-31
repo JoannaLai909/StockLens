@@ -14,7 +14,6 @@ StockLens 是一個台股量化分析平台，整合股價資料蒐集、Postgre
 | K-means 分群 | 已完成 |
 | FastAPI 後端 | 已可提供資料 API |
 | Next.js 首頁 Dashboard | 已完成基本版 |
-| 因子排行頁 | 開發中 |
 | 股票比較頁 | 開發中 |
 | 資料健康頁 | 開發中 |
 
@@ -136,7 +135,6 @@ docker compose down --remove-orphans
 | 路徑 | 頁面 | 狀態 |
 | --- | --- | --- |
 | `/` | 市場總覽 Dashboard | 已完成基本版 |
-| `/rankings` | 因子排行 | 開發中 |
 | `/stocks` | 個股分析清單 | 已完成基本版 |
 | `/stocks/[id]` | 個股詳細分析 | 已完成基本版 |
 | `/compare` | 股票比較 | 開發中 |
