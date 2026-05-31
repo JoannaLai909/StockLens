@@ -14,6 +14,7 @@ StockLens 是一個台股量化分析與健康評估平台，整合股價資料�
 | K-means 分群 | 已完成 |
 | FastAPI 後端 | 已可提供資料 API |
 | Next.js 首頁 Dashboard | 已完成基本版 |
+| 首頁因子排行 Top 10 | 已完成，支援 CSV 匯出 |
 | 個股 PDF 分析報告 | 已完成基本版 |
 | 股票比較頁 | 開發中 |
 | 資料健康頁 | 開發中 |
@@ -42,6 +43,9 @@ StockLens/
 │   ├── main.py
 │   ├── db.py
 │   └── routers/
+│       ├── market.py        # 首頁 KPI、健康散點圖、產業平均
+│       ├── rankings.py      # 首頁因子排行 Top 10 API
+│       └── stocks.py        # 股票清單、個股資料、股價資料
 ├── etl/                    # ETL 與量化因子計算
 │   ├── stock_etl.py
 │   ├── stock_factors.py
@@ -49,8 +53,21 @@ StockLens/
 │   └── docker-entrypoint.sh
 ├── frontend/               # Next.js 前端
 │   ├── src/app/
+│   │   ├── page.tsx         # 首頁 Dashboard
+│   │   ├── RankingSection.tsx
+│   │   │                    # 首頁因子排行 Top 10
+│   │   ├── stocks/
+│   │   │   ├── page.tsx     # 個股清單
+│   │   │   └── [id]/        # 個股詳細頁
+│   │   ├── compare/page.tsx # 股票比較，開發中
+│   │   └── health/page.tsx  # 資料健康，開發中
 │   ├── src/components/
+│   │   ├── layout/Sidebar.tsx
+│   │   ├── ui/Card.tsx
+│   │   └── charts/
 │   └── src/lib/
+│       ├── api.ts           # 前端呼叫 API
+│       └── utils.ts         # 格式化、顏色、分類文字
 ├── db/
 │   └── stock_schema.sql    # PostgreSQL schema 與 views
 ├── archive/                # 舊 Streamlit 版本備份
@@ -136,8 +153,9 @@ docker compose down --remove-orphans
 | 路徑 | 頁面 | 狀態 |
 | --- | --- | --- |
 | `/` | 市場總覽 Dashboard | 已完成基本版 |
+| `/` 裡的因子排行 Top 10 | 首頁排行摘要 | 已完成，支援 CSV 匯出 |
 | `/stocks` | 個股分析清單 | 已完成基本版 |
-| `/stocks/[id]` | 個股詳細分析 | 已完成基本版 |
+| `/stocks/[id]` | 個股詳細分析 | 已完成基本版，支援 PDF 報告下載 |
 | `/compare` | 股票比較 | 開發中 |
 | `/health` | 資料健康 | 開發中 |
 
@@ -149,7 +167,7 @@ docker compose down --remove-orphans
 | `/api/market/overview` | 首頁 KPI 資料 |
 | `/api/market/health-scatter` | 市場健康分布散點圖 |
 | `/api/market/industry-avg` | 產業平均健康分數 |
-| `/api/rankings` | 因子排行資料 |
+| `/api/rankings` | 首頁因子排行 Top 10 資料 |
 | `/api/stocks` | 股票清單 |
 | `/api/stocks/{stock_id}` | 單一股票最新因子資料 |
 | `/api/stocks/{stock_id}/prices` | 單一股票股價走勢 |
@@ -203,9 +221,9 @@ python3 stock_etl.py --quality-check
 
 | 成員 | 負責內容 |
 | --- | --- |
-| A | 資料庫 schema、ETL、股票清單、資料品質檢查 |
-| B | 量化因子、Health Score、K-means 分群 |
-| C | Dashboard 前端、頁面視覺化、Docker 整合 |
+| A | 資料健康頁 `/health`、資料品質檢查、資料覆蓋率視覺化 |
+| B | 股票比較頁 `/compare`、多股比較、因子比較表、雷達圖 |
+| C | 個股分析頁 `/stocks/[id]` 升級、K 線圖、MA5/MA20/MA60、風險評估與前端收尾 |
 
 ## 備註
 
