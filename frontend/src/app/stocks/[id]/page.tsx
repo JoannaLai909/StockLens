@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { fmtPct, fmtNum, CATEGORY_LABELS, healthColor, healthLabel, pctColor, cn } from "@/lib/utils";
 import PriceChart from "@/components/charts/PriceChart";
 import PriceRangeTabs from "./PriceRangeTabs";
+import DownloadReportButton from "./DownloadReportButton";
 import dayjs from "dayjs";
 
 // 個股頁在執行時才依股票代號抓 API 資料。
@@ -13,11 +14,12 @@ export const revalidate = 60;
 export default async function StockDetailPage({
   params, searchParams,
 }: {
-  params: { id: string };
-  searchParams: { days?: string };
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ days?: string }>;
 }) {
-  const days = Number(searchParams.days ?? 126);
-  const id   = params.id;
+  const { id } = await params;
+  const { days: daysParam } = await searchParams;
+  const days = Number(daysParam ?? 126);
 
   const [info, prices] = await Promise.all([
     api.stockInfo(id, true).catch(() => null),
@@ -51,6 +53,9 @@ export default async function StockDetailPage({
         <div className="text-right">
           <div className="text-3xl font-black text-slate-900">{info.latest_close?.toLocaleString()}</div>
           <div className="text-xs text-slate-400 mt-0.5">資料日期：{dayjs(info.date).format("YYYY-MM-DD")}</div>
+          <div className="mt-3">
+            <DownloadReportButton info={info} prices={prices} />
+          </div>
         </div>
       </div>
 
@@ -84,12 +89,39 @@ export default async function StockDetailPage({
           </div>
         </Card>
         <Card title="K-means 分群">
-          <div className="flex items-center gap-4">
-            <div className="text-3xl font-black text-blue-600">
-              {info.cluster_label !== null ? `Cluster ${info.cluster_label}` : "—"}
+          <div className="space-y-4">
+            <div>
+              <div className="text-xs font-bold text-slate-400 mb-1">
+                {info.cluster_label !== null ? `Cluster ${info.cluster_label}` : "尚未分群"}
+                {info.cluster_stock_count ? ` · 同群 ${info.cluster_stock_count} 檔` : ""}
+              </div>
+              <div className="text-2xl font-black text-blue-600">
+                {info.cluster_name ?? "尚未分類"}
+              </div>
+              <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                {info.cluster_description}
+              </p>
             </div>
-            <div className="text-sm text-slate-400 leading-relaxed">
-              依 health_score、報酬率、波動率等<br />6 個因子做 K-means 分群（3 群）。
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-xl bg-slate-50 px-3 py-2">
+                <div className="text-[11px] font-bold text-slate-400">群組健康</div>
+                <div className="text-sm font-black text-green-600">
+                  {info.cluster_avg_health_score !== null ? fmtNum(info.cluster_avg_health_score, 1) : "—"}
+                </div>
+              </div>
+              <div className="rounded-xl bg-slate-50 px-3 py-2">
+                <div className="text-[11px] font-bold text-slate-400">60日報酬</div>
+                <div className="text-sm font-black text-blue-600">
+                  {info.cluster_avg_return_60d_pct !== null ? fmtPct(info.cluster_avg_return_60d_pct) : "—"}
+                </div>
+              </div>
+              <div className="rounded-xl bg-slate-50 px-3 py-2">
+                <div className="text-[11px] font-bold text-slate-400">群組波動</div>
+                <div className="text-sm font-black text-amber-600">
+                  {info.cluster_avg_volatility_pct !== null ? `${fmtNum(info.cluster_avg_volatility_pct, 2)}%` : "—"}
+                </div>
+              </div>
             </div>
           </div>
         </Card>

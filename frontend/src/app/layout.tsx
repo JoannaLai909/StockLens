@@ -4,8 +4,8 @@ import Sidebar from "@/components/layout/Sidebar";
 import Providers from "./providers";
 
 export const metadata: Metadata = {
-  title: "StockLens | 台股量化分析",
-  description: "整合股價資料、量化因子與互動式圖表，快速掌握股票表現與風險",
+  title: "StockLens | 台股量化分析與健康評估平台",
+  description: "整合股價資料、量化因子、健康分數與互動式圖表，快速掌握股票表現與風險",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
