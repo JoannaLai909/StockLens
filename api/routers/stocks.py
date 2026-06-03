@@ -67,3 +67,51 @@ def get_factors_history(
           AND date >= CURRENT_DATE - INTERVAL '1 day' * %s
         ORDER BY date ASC
     """, (stock_id, days))
+
+@router.get("/{stock_id}/prices-with-ma")
+def get_prices_with_ma(
+    stock_id: str,
+    days: int = Query(126, ge=1, le=500),
+):
+    import pandas as pd
+    import math
+
+    rows = query("""
+        SELECT date, open, high, low,
+               close,
+               volume,
+               trade_value
+        FROM daily_prices
+        WHERE stock_id = %s
+          AND date >= CURRENT_DATE - INTERVAL '1 day' * %s
+        ORDER BY date ASC
+    """, (stock_id, days + 60))
+
+    if not rows:
+        raise HTTPException(status_code=404, detail=f"{stock_id} 無資料")
+
+    df = pd.DataFrame(rows)
+
+    numeric_cols = ["open", "high", "low", "close", "volume", "trade_value"]
+    for col in numeric_cols:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    df["ma5"] = df["close"].rolling(5).mean().round(2)
+    df["ma20"] = df["close"].rolling(20).mean().round(2)
+    df["ma60"] = df["close"].rolling(60).mean().round(2)
+
+    # 只回傳使用者要求的天數
+    df = df.tail(days).copy()
+
+    # date 轉字串，避免 JSON 序列化問題
+    df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
+
+    # 把 NaN 轉成 None，避免 JSON 出現 nan
+    records = df.to_dict(orient="records")
+
+    for row in records:
+        for key, value in row.items():
+            if isinstance(value, float) and math.isnan(value):
+                row[key] = None
+
+    return records

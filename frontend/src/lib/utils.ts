@@ -45,3 +45,34 @@ export function pctColor(v: number | null | undefined): string {
   if (v == null) return "text-slate-400";
   return v >= 0 ? "text-success" : "text-danger";
 }
+
+export function riskLevel(
+  volatility: number | null,
+  drawdown: number | null,
+  healthScore: number | null
+): { vol: string; dd: string; color: string } {
+  // 波動率等級
+  const vol = !volatility ? "—"
+    : volatility <= 15 ? "低"
+    : volatility <= 30 ? "中等"
+    : "高";
+
+  // 最大回撤等級
+  const dd = !drawdown ? "—"
+    : drawdown >= -10 ? "低"
+    : drawdown >= -20 ? "中等"
+    : "高";
+
+  // 整體風險顏色
+  const score = healthScore ?? 0;
+  const color = score >= 65 ? "text-green-600"
+    : score >= 50 ? "text-amber-500"
+    : "text-red-500";
+
+  return { vol, dd, color };
+}
+
+export function riskRatio(volumeRatio: number | null, drawdown: number | null): string {
+  if (!volumeRatio || !drawdown || drawdown === 0) return "—";
+  return (volumeRatio / Math.abs(drawdown)).toFixed(2);
+}
