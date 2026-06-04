@@ -15,3 +15,8 @@ venv/
 
 # OS
 .DS_Store
+
+# Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/tsconfig.tsbuildinfo
