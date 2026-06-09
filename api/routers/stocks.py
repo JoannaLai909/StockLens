@@ -119,6 +119,53 @@ def get_prices(
     return rows
 
 
+@router.get("/{stock_id}/prices-with-ma")
+def get_prices_with_ma(
+    stock_id: str,
+    days: int = Query(126, ge=1, le=500, description="取近幾天"),
+):
+    rows = query("""
+        WITH price_ma AS (
+            SELECT
+                date,
+                open,
+                high,
+                low,
+                close,
+                volume,
+                trade_value,
+                AVG(close) OVER (
+                    ORDER BY date ASC ROWS BETWEEN 4 PRECEDING AND CURRENT ROW
+                ) AS ma5,
+                AVG(close) OVER (
+                    ORDER BY date ASC ROWS BETWEEN 19 PRECEDING AND CURRENT ROW
+                ) AS ma20,
+                AVG(close) OVER (
+                    ORDER BY date ASC ROWS BETWEEN 59 PRECEDING AND CURRENT ROW
+                ) AS ma60
+            FROM daily_prices
+            WHERE stock_id = %s
+        )
+        SELECT
+            date,
+            ROUND(open::NUMERIC, 2) AS open,
+            ROUND(high::NUMERIC, 2) AS high,
+            ROUND(low::NUMERIC, 2) AS low,
+            ROUND(close::NUMERIC, 2) AS close,
+            volume,
+            trade_value,
+            ROUND(ma5::NUMERIC, 2) AS ma5,
+            ROUND(ma20::NUMERIC, 2) AS ma20,
+            ROUND(ma60::NUMERIC, 2) AS ma60
+        FROM price_ma
+        WHERE date >= CURRENT_DATE - INTERVAL '1 day' * %s
+        ORDER BY date ASC
+    """, (stock_id, days))
+    if not rows:
+        raise HTTPException(status_code=404, detail=f"股票 {stock_id} 無價格資料")
+    return rows
+
+
 @router.get("/{stock_id}/factors-history")
 def get_factors_history(
     stock_id: str,

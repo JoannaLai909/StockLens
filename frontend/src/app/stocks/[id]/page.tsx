@@ -4,6 +4,7 @@ import {
   fmtPct, fmtNum, CATEGORY_LABELS,
   healthColor, healthLabel, pctColor, riskLevel, riskRatio, cn,
 } from "@/lib/utils";
+import { Card } from "@/components/ui/Card";
 import CandleChart from "@/components/charts/CandleChart";
 import PriceRangeTabs from "./PriceRangeTabs";
 import DownloadReportButton from "./DownloadReportButton";
@@ -41,6 +42,14 @@ export default async function StockDetailPage({
 
   const risk = riskLevel(info.volatility_pct, info.max_drawdown_pct, info.health_score);
   const ratio = riskRatio(info.volume_ratio, info.max_drawdown_pct);
+  const metrics = [
+    { label: "20日報酬", value: fmtPct(info.return_20d_pct), color: pctColor(info.return_20d_pct) },
+    { label: "60日報酬", value: fmtPct(info.return_60d_pct), color: pctColor(info.return_60d_pct) },
+    { label: "波動率", value: `${info.volatility_pct?.toFixed(2)}%`, color: "text-blue-600" },
+    { label: "最大回撤", value: fmtPct(info.max_drawdown_pct), color: "text-red-500" },
+    { label: "成交量倍率", value: fmtNum(info.volume_ratio, 2), color: "text-amber-500" },
+    { label: "健康分數", value: `${fmtNum(info.health_score)} / 100`, color: "text-green-600" },
+  ];
 
   return (
     <div className="space-y-5">
@@ -72,7 +81,7 @@ export default async function StockDetailPage({
             <div className="text-xs text-slate-400 font-semibold mb-1.5">{label}</div>
             <div className={cn("text-base font-black", color)}>{value}</div>
           </div>
-        </div>
+        ))}
       </div>
 
       {/* K 線圖 + 成交量 */}
