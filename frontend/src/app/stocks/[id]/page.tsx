@@ -1,18 +1,19 @@
 import { api } from "@/lib/api";
-import { Card } from "@/components/ui/Card";
 import { notFound } from "next/navigation";
-import { fmtPct, fmtNum, CATEGORY_LABELS, healthColor, healthLabel, pctColor, cn } from "@/lib/utils";
-import PriceChart from "@/components/charts/PriceChart";
+import {
+  fmtPct, fmtNum, CATEGORY_LABELS,
+  healthColor, healthLabel, pctColor, riskLevel, riskRatio, cn,
+} from "@/lib/utils";
+import CandleChart from "@/components/charts/CandleChart";
 import PriceRangeTabs from "./PriceRangeTabs";
 import DownloadReportButton from "./DownloadReportButton";
 import dayjs from "dayjs";
 
-// 個股頁在執行時才依股票代號抓 API 資料。
-export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
 export default async function StockDetailPage({
-  params, searchParams,
+  params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ days?: string }>;
@@ -22,28 +23,34 @@ export default async function StockDetailPage({
   const days = Number(daysParam ?? 126);
 
   const [info, prices] = await Promise.all([
-    api.stockInfo(id, true).catch(() => null),
-    api.stockPrices(id, days, true).catch(() => []),
+    api.stockInfo(id, true).catch((err) => {
+      console.error("stockInfo error:", err);
+      return null;
+    }),
+    fetch(`${process.env.API_INTERNAL_URL ?? "http://localhost:8000"}/api/stocks/${id}/prices-with-ma?days=${days}`)
+      .then((r) => r.json())
+      .catch((err) => {
+        console.error("prices-with-ma error:", err);
+        return [];
+      }),
   ]);
+
+  console.log("stock info =", info);
+
   if (!info) notFound();
 
-  const metrics = [
-    { label: "20日報酬率", value: fmtPct(info.return_20d_pct),             color: pctColor(info.return_20d_pct) },
-    { label: "60日報酬率", value: fmtPct(info.return_60d_pct),             color: pctColor(info.return_60d_pct) },
-    { label: "波動率",     value: `${info.volatility_pct?.toFixed(2)}%`,   color: "text-blue-600"  },
-    { label: "最大回撤",   value: fmtPct(info.max_drawdown_pct),           color: "text-red-500"   },
-    { label: "成交量倍率", value: fmtNum(info.volume_ratio, 2),            color: "text-amber-500" },
-    { label: "健康分數",   value: `${fmtNum(info.health_score)} / 100`,    color: "text-green-600" },
-  ];
+  const risk = riskLevel(info.volatility_pct, info.max_drawdown_pct, info.health_score);
+  const ratio = riskRatio(info.volume_ratio, info.max_drawdown_pct);
 
   return (
     <div className="space-y-5">
+
+      {/* 頁首：股票名稱 + 最新收盤 */}
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-mono bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md font-bold">
-              {info.stock_id}
-            </span>
+            <span className="text-xs font-mono bg-blue-50 text-blue-600
+                             px-2 py-0.5 rounded-md font-bold">{info.stock_id}</span>
             <span className="text-xs text-slate-400">
               {CATEGORY_LABELS[info.category] ?? info.category} · {info.market}
             </span>
@@ -65,26 +72,56 @@ export default async function StockDetailPage({
             <div className="text-xs text-slate-400 font-semibold mb-1.5">{label}</div>
             <div className={cn("text-base font-black", color)}>{value}</div>
           </div>
-        ))}
+        </div>
       </div>
 
-      <Card title="收盤價走勢 ＋ 成交量">
+      {/* K 線圖 + 成交量 */}
+      <Card title="股價走勢（K 線圖）">
         <PriceRangeTabs currentDays={days} stockId={id} />
-        <PriceChart data={prices} showVolume />
+        <CandleChart data={prices} />
       </Card>
 
-      <div className="grid grid-cols-2 gap-4">
-        <Card title="健康狀態">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black text-white"
-                 style={{ background: healthColor(info.health_score) }}>
-              {fmtNum(info.health_score, 0)}
+      {/* 量化因子表 */}
+      <div className="grid grid-cols-3 gap-4">
+        {/* 左：6 個指標卡 */}
+        <div className="col-span-2">
+          <Card title={`量化因子表（${dayjs(info.date).format("YYYY-MM-DD")}）`}>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: "20日報酬率", value: fmtPct(info.return_20d_pct),
+                  color: pctColor(info.return_20d_pct) },
+                { label: "60日報酬率", value: fmtPct(info.return_60d_pct),
+                  color: pctColor(info.return_60d_pct) },
+                { label: "波動率",     value: `${info.volatility_pct?.toFixed(2)}%`,
+                  color: "text-blue-600" },
+                { label: "最大回撤",   value: fmtPct(info.max_drawdown_pct),
+                  color: "text-red-500" },
+                { label: "成交量倍率", value: fmtNum(info.volume_ratio, 2),
+                  color: "text-amber-500" },
+                { label: "健康分數",   value: `${fmtNum(info.health_score)} / 100`,
+                  color: "text-green-600" },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="bg-slate-50 rounded-xl p-3 text-center">
+                  <div className="text-xs text-slate-400 font-semibold mb-1.5">{label}</div>
+                  <div className={cn("text-base font-black", color)}>{value}</div>
+                </div>
+              ))}
             </div>
-            <div>
-              <div className="text-base font-bold text-slate-800">{healthLabel(info.health_score)}</div>
-              <div className="text-sm text-slate-400 mt-1 leading-relaxed">
-                請搭配報酬率、波動率、最大回撤與<br />成交量變化一起判斷。
-              </div>
+          </Card>
+        </div>
+
+        {/* 右：風險評估 */}
+        <Card title="風險評估">
+          <div className="space-y-3">
+            <RiskRow label="波動率等級" value={risk.vol} />
+            <RiskRow label="最大回撤等級" value={risk.dd}
+                     good={risk.dd === "低"} />
+            <div className="pt-2 border-t border-slate-100">
+              <div className="text-xs text-slate-400 mb-1">風險報酬比</div>
+              <div className="text-xl font-black text-slate-800">{ratio}</div>
+              <a href="#" className="text-xs text-blue-500 hover:underline mt-0.5 block">
+                風險報酬比計算說明
+              </a>
             </div>
           </div>
         </Card>
@@ -126,6 +163,22 @@ export default async function StockDetailPage({
           </div>
         </Card>
       </div>
+
+    </div>
+  );
+}
+
+function RiskRow({ label, value, good }: {
+  label: string; value: string; good?: boolean;
+}) {
+  const color = value === "低" ? "text-green-600"
+    : value === "中等" ? "text-amber-500"
+    : value === "高" ? "text-red-500"
+    : "text-slate-400";
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-xs text-slate-400">{label}</span>
+      <span className={cn("text-sm font-bold", color)}>{value}</span>
     </div>
   );
 }
