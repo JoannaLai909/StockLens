@@ -2,14 +2,16 @@ import { cn } from "@/lib/utils";
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   title?: string;
+  action?: React.ReactNode;
 }
 
-export function Card({ title, children, className, ...props }: CardProps) {
+export function Card({ title, action, children, className, ...props }: CardProps) {
   return (
     <div className={cn("bg-white rounded-2xl border border-slate-200 shadow-sm", className)} {...props}>
-      {title && (
-        <div className="px-5 pt-4 pb-0">
+      {(title || action) && (
+        <div className="px-5 pt-4 pb-0 flex items-center justify-between gap-3">
           <h3 className="text-sm font-bold text-slate-700">{title}</h3>
+          {action}
         </div>
       )}
       <div className="p-5">{children}</div>

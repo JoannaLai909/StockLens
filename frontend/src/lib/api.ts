@@ -70,6 +70,12 @@ export interface StockInfo {
   volume_ratio: number;
   health_score: number;
   cluster_label: number | null;
+  cluster_name: string | null;
+  cluster_description: string;
+  cluster_stock_count: number | null;
+  cluster_avg_health_score: number | null;
+  cluster_avg_return_60d_pct: number | null;
+  cluster_avg_volatility_pct: number | null;
 }
 
 export interface PriceBar {

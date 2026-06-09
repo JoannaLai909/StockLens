@@ -6,6 +6,41 @@ from db import query, query_one
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 
 
+def _cluster_summary(profile: dict | None) -> dict:
+    """把 K-means 的數字群組轉成 Dashboard 可理解的文字說明。"""
+    if not profile:
+        return {
+            "cluster_name": None,
+            "cluster_description": "目前尚未完成分群，請先執行因子計算與 K-means。",
+        }
+
+    health = float(profile["avg_health_score"] or 0)
+    ret60 = float(profile["avg_return_60d_pct"] or 0)
+    vol = float(profile["avg_volatility_pct"] or 0)
+    drawdown = float(profile["avg_max_drawdown_pct"] or 0)
+
+    if health >= 70 and vol <= 18 and drawdown >= -12:
+        name = "穩健成長型"
+        desc = "同群平均健康分數較高，波動與回撤相對可控，適合優先觀察中長期表現。"
+    elif ret60 >= 10 and vol > 18:
+        name = "高動能波動型"
+        desc = "同群近期報酬表現較強，但波動也偏高，適合搭配風險控管一起判斷。"
+    elif health < 55 or drawdown < -15:
+        name = "風險偏高型"
+        desc = "同群健康分數較低或最大回撤較深，代表近期風險較明顯，需要保守看待。"
+    elif vol <= 14:
+        name = "防禦穩定型"
+        desc = "同群波動相對低，價格變動較穩定，但仍需搭配報酬率確認成長性。"
+    else:
+        name = "中性觀察型"
+        desc = "同群表現介於成長與風險之間，建議搭配產業、報酬率與成交量變化一起比較。"
+
+    return {
+        "cluster_name": name,
+        "cluster_description": desc,
+    }
+
+
 @router.get("")
 def list_stocks():
     return query("SELECT stock_id, name, category, market FROM stocks ORDER BY stock_id")
@@ -29,6 +64,39 @@ def get_stock(stock_id: str):
     """, (stock_id,))
     if not row:
         raise HTTPException(status_code=404, detail=f"股票 {stock_id} 不存在")
+
+    profile = None
+    if row.get("cluster_label") is not None:
+        profile = query_one("""
+            SELECT cluster_label,
+                   COUNT(*) AS cluster_stock_count,
+                   ROUND(AVG(health_score)::NUMERIC, 1) AS avg_health_score,
+                   ROUND((AVG(return_20d) * 100)::NUMERIC, 2) AS avg_return_20d_pct,
+                   ROUND((AVG(return_60d) * 100)::NUMERIC, 2) AS avg_return_60d_pct,
+                   ROUND((AVG(volatility_20d) * 100)::NUMERIC, 2) AS avg_volatility_pct,
+                   ROUND((AVG(max_drawdown) * 100)::NUMERIC, 2) AS avg_max_drawdown_pct
+            FROM factor_scores
+            WHERE date = %s
+              AND cluster_label = %s
+            GROUP BY cluster_label
+        """, (row["date"], row["cluster_label"]))
+
+    row.update(_cluster_summary(profile))
+    if profile:
+        row.update({
+            "cluster_stock_count": profile["cluster_stock_count"],
+            "cluster_avg_health_score": profile["avg_health_score"],
+            "cluster_avg_return_60d_pct": profile["avg_return_60d_pct"],
+            "cluster_avg_volatility_pct": profile["avg_volatility_pct"],
+        })
+    else:
+        row.update({
+            "cluster_stock_count": None,
+            "cluster_avg_health_score": None,
+            "cluster_avg_return_60d_pct": None,
+            "cluster_avg_volatility_pct": None,
+        })
+
     return row
 
 
@@ -67,51 +135,3 @@ def get_factors_history(
           AND date >= CURRENT_DATE - INTERVAL '1 day' * %s
         ORDER BY date ASC
     """, (stock_id, days))
-
-@router.get("/{stock_id}/prices-with-ma")
-def get_prices_with_ma(
-    stock_id: str,
-    days: int = Query(126, ge=1, le=500),
-):
-    import pandas as pd
-    import math
-
-    rows = query("""
-        SELECT date, open, high, low,
-               close,
-               volume,
-               trade_value
-        FROM daily_prices
-        WHERE stock_id = %s
-          AND date >= CURRENT_DATE - INTERVAL '1 day' * %s
-        ORDER BY date ASC
-    """, (stock_id, days + 60))
-
-    if not rows:
-        raise HTTPException(status_code=404, detail=f"{stock_id} 無資料")
-
-    df = pd.DataFrame(rows)
-
-    numeric_cols = ["open", "high", "low", "close", "volume", "trade_value"]
-    for col in numeric_cols:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-
-    df["ma5"] = df["close"].rolling(5).mean().round(2)
-    df["ma20"] = df["close"].rolling(20).mean().round(2)
-    df["ma60"] = df["close"].rolling(60).mean().round(2)
-
-    # 只回傳使用者要求的天數
-    df = df.tail(days).copy()
-
-    # date 轉字串，避免 JSON 序列化問題
-    df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
-
-    # 把 NaN 轉成 None，避免 JSON 出現 nan
-    records = df.to_dict(orient="records")
-
-    for row in records:
-        for key, value in row.items():
-            if isinstance(value, float) and math.isnan(value):
-                row[key] = None
-
-    return records

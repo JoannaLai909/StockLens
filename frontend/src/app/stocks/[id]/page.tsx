@@ -6,7 +6,7 @@ import {
 } from "@/lib/utils";
 import CandleChart from "@/components/charts/CandleChart";
 import PriceRangeTabs from "./PriceRangeTabs";
-import { Card } from "@/components/ui/Card";
+import DownloadReportButton from "./DownloadReportButton";
 import dayjs from "dayjs";
 
 export const revalidate = 60;
@@ -20,12 +20,7 @@ export default async function StockDetailPage({
 }) {
   const { id } = await params;
   const { days: daysParam } = await searchParams;
-
   const days = Number(daysParam ?? 126);
-
-  console.log("stock detail id =", id);
-  console.log("API_INTERNAL_URL =", process.env.API_INTERNAL_URL);
-  console.log("NEXT_PUBLIC_API_URL =", process.env.NEXT_PUBLIC_API_URL);
 
   const [info, prices] = await Promise.all([
     api.stockInfo(id, true).catch((err) => {
@@ -63,11 +58,19 @@ export default async function StockDetailPage({
           <h1 className="text-2xl font-black text-slate-900">{info.name}</h1>
         </div>
         <div className="text-right">
-          <div className="text-3xl font-black text-slate-900">
-            {info.latest_close?.toLocaleString()}
+          <div className="text-3xl font-black text-slate-900">{info.latest_close?.toLocaleString()}</div>
+          <div className="text-xs text-slate-400 mt-0.5">資料日期：{dayjs(info.date).format("YYYY-MM-DD")}</div>
+          <div className="mt-3">
+            <DownloadReportButton info={info} prices={prices} />
           </div>
-          <div className="text-xs text-slate-400 mt-0.5">
-            {dayjs(info.date).format("YYYY-MM-DD")}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-6 gap-3">
+        {metrics.map(({ label, value, color }) => (
+          <div key={label} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3.5 text-center">
+            <div className="text-xs text-slate-400 font-semibold mb-1.5">{label}</div>
+            <div className={cn("text-base font-black", color)}>{value}</div>
           </div>
         </div>
       </div>
@@ -122,38 +125,39 @@ export default async function StockDetailPage({
             </div>
           </div>
         </Card>
-      </div>
-
-      {/* 基本資訊 + 分群 */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card title="基本資訊">
-          <div className="grid grid-cols-2 gap-y-2 text-sm">
-            <span className="text-slate-400">產業分類</span>
-            <span className="font-semibold">
-              {CATEGORY_LABELS[info.category] ?? info.category}
-            </span>
-            <span className="text-slate-400">上市類別</span>
-            <span className="font-semibold">{info.market}</span>
-            <span className="text-slate-400">市值（億）</span>
-            <span className="text-slate-300 text-xs">延伸功能</span>
-            <span className="text-slate-400">收盤價</span>
-            <span className="font-semibold">{info.latest_close?.toLocaleString()}</span>
-            <span className="text-slate-400">成交量（億）</span>
-            <span className="font-semibold text-slate-300 text-xs">延伸功能</span>
-          </div>
-        </Card>
-
-        <Card title="分群資訊">
-          <div className="flex items-start gap-4">
+        <Card title="K-means 分群">
+          <div className="space-y-4">
             <div>
-              <div className="text-2xl font-black text-blue-600 mb-1">
-                {info.cluster_label !== null
-                  ? `Cluster ${info.cluster_label}（成長型）`
-                  : "—"}
+              <div className="text-xs font-bold text-slate-400 mb-1">
+                {info.cluster_label !== null ? `Cluster ${info.cluster_label}` : "尚未分群"}
+                {info.cluster_stock_count ? ` · 同群 ${info.cluster_stock_count} 檔` : ""}
               </div>
-              <div className="text-xs text-slate-400 leading-relaxed">
-                本股票為高成長型股票，健康分數較高且較穩定，動能較強的族群。<br />
-                適合中等以上的投資人。
+              <div className="text-2xl font-black text-blue-600">
+                {info.cluster_name ?? "尚未分類"}
+              </div>
+              <p className="text-sm text-slate-500 mt-2 leading-relaxed">
+                {info.cluster_description}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="rounded-xl bg-slate-50 px-3 py-2">
+                <div className="text-[11px] font-bold text-slate-400">群組健康</div>
+                <div className="text-sm font-black text-green-600">
+                  {info.cluster_avg_health_score !== null ? fmtNum(info.cluster_avg_health_score, 1) : "—"}
+                </div>
+              </div>
+              <div className="rounded-xl bg-slate-50 px-3 py-2">
+                <div className="text-[11px] font-bold text-slate-400">60日報酬</div>
+                <div className="text-sm font-black text-blue-600">
+                  {info.cluster_avg_return_60d_pct !== null ? fmtPct(info.cluster_avg_return_60d_pct) : "—"}
+                </div>
+              </div>
+              <div className="rounded-xl bg-slate-50 px-3 py-2">
+                <div className="text-[11px] font-bold text-slate-400">群組波動</div>
+                <div className="text-sm font-black text-amber-600">
+                  {info.cluster_avg_volatility_pct !== null ? `${fmtNum(info.cluster_avg_volatility_pct, 2)}%` : "—"}
+                </div>
               </div>
             </div>
           </div>
