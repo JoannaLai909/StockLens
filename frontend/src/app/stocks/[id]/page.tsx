@@ -28,7 +28,9 @@ export default async function StockDetailPage({
       console.error("stockInfo error:", err);
       return null;
     }),
-    fetch(`${process.env.API_INTERNAL_URL ?? "http://localhost:8000"}/api/stocks/${id}/prices-with-ma?days=${days}`)
+    fetch(`${process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8002"}/api/stocks/${id}/prices-with-ma?days=${days}`, {
+      cache: "no-store",
+    })
       .then((r) => r.json())
       .catch((err) => {
         console.error("prices-with-ma error:", err);

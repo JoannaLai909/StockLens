@@ -11,6 +11,10 @@ from sklearn.cluster import KMeans
 def get_connection():
     load_dotenv()
 
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        return psycopg2.connect(database_url)
+
     return psycopg2.connect(
         host=os.getenv("DB_HOST", "localhost"),
         port=os.getenv("DB_PORT", "5433"),

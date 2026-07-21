@@ -12,6 +12,10 @@ load_dotenv()
 
 
 def get_db_config() -> dict:
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        return {"dsn": database_url}
+
     return {
         "host":     os.getenv("DB_HOST", "localhost"),
         "port":     int(os.getenv("DB_PORT", "5432")),
@@ -23,7 +27,9 @@ def get_db_config() -> dict:
 
 @contextmanager
 def get_conn():
-    conn = psycopg2.connect(**get_db_config())
+    config = get_db_config()
+    dsn = config.pop("dsn", None)
+    conn = psycopg2.connect(dsn, **config) if dsn else psycopg2.connect(**config)
     try:
         yield conn
     finally:

@@ -34,6 +34,10 @@ log = logging.getLogger(__name__)
 
 # 從 .env 讀取（必填項目沒設定會直接報錯，避免用錯誤設定連線）
 def get_db_config():
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        return {"dsn": database_url}
+
     password = os.getenv("DB_PASSWORD")
     if not password:
         raise RuntimeError("請先在 .env 設定 DB_PASSWORD，並確認它和 PostgreSQL 密碼一致。")
@@ -53,7 +57,9 @@ RATE_LIMIT_SLEEP = 1.5   # 免費版每次請求間隔秒數
 
 # ── 資料庫連線 ─────────────────────────────────────────
 def get_conn():
-    return psycopg2.connect(**get_db_config())
+    config = get_db_config()
+    dsn = config.pop("dsn", None)
+    return psycopg2.connect(dsn, **config) if dsn else psycopg2.connect(**config)
 
 
 # ── 初始化資料庫 ───────────────────────────────────────
